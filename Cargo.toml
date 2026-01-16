@@ -2,7 +2,7 @@
 name = "btwd"
 version = "0.1.0"
 edition = "2021"
-authors = ["btw maintainer <bumblebee4ever02@gmail.com>"]
+authors = ["btw Bumblebee-3 <bumblebee4ever02@gmail.com>"]
 description = "btwd: minimal voice assistant for arch linux"
 license = "MIT"
 
