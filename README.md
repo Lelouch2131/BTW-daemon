@@ -1,247 +1,246 @@
-# Bumblebee Trusts Wikipedia (daemon) — Voice Assistant for Arch Linux
 
-**btwd** is a lightweight voice assistant for Linux desktops.
-It runs as a **systemd user service**, listens for a wake word, understands speech,
-executes safe system commands, and can answer factual questions — without ever
-allowing an LLM to execute commands.
-Just install, configure, and enable the service.
+# BTWd — Bumblebee Trusts Wikipedia Daemon
 
----
+Wake-word voice assistant daemon for Arch Linux.
+Uses wake word detection (Porcupine) with local audio capture/VAD, and then routes speech to either an allow-listed command executor or an LLM.
+Commands are executed only if explicitly defined in `commands.json`.
 
 ## Features
 
 - Wake word detection (Porcupine)
-- Robust end-of-speech detection (WebRTC VAD)
-- Speech-to-text via **Groq Whisper**
-- Deterministic intent routing (LLM used only for classification)
-- **Strictly allow-listed command execution**
-- Explicit confirmation for dangerous actions
-- Optional:
-  - On-screen notifications (OSD)
-  - Spoken responses via **Groq Cloud TTS**
-  - Read-only web answers (Tavily → Mistral summarized)
+- Local audio capture + VAD
+- Intent routing with strict command allow-list
+- LLM responses (Groq / Mistral)
+- Web fallback via Tavily (only when required)
+- OSD / notification support 
+- Safe command execution with confirmation
 
----
+## Installation (Arch Linux – step by step)
 
-## Security Model
+### All files available in Releases Tab
 
-- Only commands listed in `commands.json` can run
-- No shell execution (`sh -c` is never used)
-- No pipes, redirects, globbing, or env expansion
-- All parameters are validated (type + range)
-- Dangerous commands require explicit confirmation
-- LLM output is **never executed**
+### 4.1 System dependencies (pacman)
 
----
+Install build + runtime deps:
 
-## Installation
-
-### 1. Install runtime dependencies
-
-Arch Linux:
-
-```bash
-sudo pacman -S python python-pip pipewire pipewire-pulse libnotify alsa-utils ffmpeg
-```
-2. Install Python ASR dependencies
-```
-pip install --user groq numpy
+```zsh
+sudo pacman -S --needed \
+	git \
+	rust \
+	cargo \
+	python \
+	python-virtualenv \
+	alsa-lib
 ```
 
-3. Install Porcupine SDK
+Audio backends depend on your system:
 
-Copy headers and library to:
+- PipeWire users: ensure `pipewire` + `pipewire-pulse` are installed/running.
+- ALSA-only users: ensure your ALSA device is working.
 
+
+### 4.2 Clone & build
+
+```zsh
+git clone https://github.com/Bumblebee-3/BTW-daemon.git
+cd BTW-daemon/btwd
+
+cargo build --release
 ```
-~/.local/include/
-~/.local/lib/
 
-Porcupine 4.0 Setup (Important)
+The binary will be at:
 
-Porcupine 4.0 requires ALL of the following at runtime:
+- `target/release/btwd`
 
-- `libpv_porcupine.so` (shared library)
-- `porcupine_params.pv` (model parameters file)
-- Your wake word file: `*.ppn`
+If you want it on your PATH:
 
-Suggested locations:
+```zsh
+install -Dm755 target/release/btwd "$HOME/.local/bin/btwd"
+```
 
-- Library: `~/.local/lib/libpv_porcupine.so`
-- Params: `~/.local/share/porcupine/porcupine_params.pv`
-- Wake words: `~/.config/btw/wake_words/*.ppn`
+### 4.3 Porcupine setup
 
-Environment:
+BTWd expects the Porcupine shared library and model files to be available locally.
 
-- `PICOVOICE_ACCESS_KEY` must be set in `~/.config/btw/.env`
+1) Download Porcupine 4.0 from Picovoice and extract it.
+2) Place the following files somewhere stable (example layout below):
 
-⚠️ Why this matters
+```text
+$HOME/.local/lib/libpv_porcupine.so
+$HOME/.local/share/porcupine/porcupine_params.pv
+$HOME/.local/share/porcupine/btw.ppn
+```
 
-Porcupine 4.0's C API requires `model_path` and `device` arguments in `pv_porcupine_init`. If they are omitted or mismatched, the C SDK can crash (stack corruption / segfault). btwd validates these values at startup and fails fast with a readable error.
+This repo already contains a wake-word file `btw.ppn` at the project root; you can use that path directly in config.
 
-Example `config.toml` wake-word section:
+Make sure the loader can find `libpv_porcupine.so`.
+Example (manual run):
+
+```zsh
+export LD_LIBRARY_PATH="$HOME/.local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+### 4.4 Python ML environment
+
+The ASR worker is a small Python process in `ml/btw_ml.py`.
+
+```zsh
+cd btwd
+
+python -m venv .venv
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
+python -m pip install groq numpy
+```
+
+## Configuration
+
+### 5.1 `config.toml` (example)
+
+Start from `example.config.toml` and adjust paths.
 
 ```toml
+# Identity (optional)
+name = "btwd"
+description = "Wake word voice assistant daemon"
+
 [wake_word]
-ppn_path = "/home/USER/.config/btw/wake_words/btw.ppn"
-model_path = "/home/USER/.local/share/porcupine/porcupine_params.pv"
-device = "cpu"     # optional, default "cpu"
+# Wake-word model (Porcupine)
+ppn_path = "/home/you/.local/share/porcupine/btw.ppn"
+model_path = "/home/you/.local/share/porcupine/porcupine_params.pv"
+device = "cpu"
 sensitivity = 0.6
-```
-```
 
-4. Install btwd binary
-
-Copy btwd to:
-
-```
-~/.local/bin/btwd
-```
-
-Ensure it is executable.
-
-Configuration
-
-All configuration lives in:
-```
-~/.config/btw/
-```
-
-Required files:
-```
-config.toml
-commands.json
-.env
-```
-
-LLM Provider
-
-- Default provider is Groq. You can optionally switch to Mistral.
-- Configure in `config.toml`:
-
-```
-[llm]
-provider = "groq"   # or "mistral"; defaults to "groq" when omitted
-```
-
-- Environment keys:
-  - When `[llm].provider = "groq"`: set `GROQ_API_KEY` in `.env`
-  - When `[llm].provider = "mistral"`: set `MISTRAL_API_KEY` in `.env`
-  - Do not require both keys at the same time; only the active provider key is required
-  - `PICOVOICE_ACCESS_KEY` (Porcupine) and optional `TAVILY_API_KEY` are independent
-
-Example `config.toml` (excerpt)
-
-```
-[wake_word]
-ppn_path = "/absolute/path/to/wake_word.ppn"
-sensitivity = 0.6
+[speech]
+# VAD/utterance control
+silence_threshold = 0.01        # normalized RMS (0.0..1.0)
+silence_duration_ms = 700       # continuous silence required
+max_utterance_seconds = 30      # hard safety cap
 
 [execution]
+# Command confirmation safety
 confirmation_timeout_seconds = 10
 dry_run = false
 
 [ui]
-listening_notification = true
-osd = true
-osd_timeout_ms = 2000
+# Notifications (works with swaync)
+listening_notification = true   # toast on wake
+osd = true                      # allow text notifications
+osd_timeout_ms = 2000           # auto-dismiss (ms)
 
 [speech_output]
+# TTS output (LLM provider dependent)
 enabled = true
-provider = "groq"     # TTS provider (Groq only)
+provider = "groq"              # "groq" or "mistral"
 voice = "alloy"
 format = "wav"
 rate = 1.0
 
 [search]
+# Web fallback via Tavily
 enabled = true
 timeout_ms = 3500
-country = "india"  # optional; passed to Tavily (e.g. "india", "us")
-
-# btwd uses Tavily as the ONLY search backend when search is enabled.
+country = "india"              # optional (e.g. "india", "us")
 
 [llm]
-provider = "groq"     # or "mistral" (default is "groq")
+# LLM backend used for intent + answering
+provider = "mistral"
 ```
 
-Example `.env`
+### 5.2 `.env` (example)
 
-```
-PICOVOICE_ACCESS_KEY=pk_...
-GROQ_API_KEY=gsk_...         # required when provider = "groq"
-MISTRAL_API_KEY=mis_...      # required when provider = "mistral"
-TAVILY_API_KEY=...           # optional, enables read-only web answers
+Create `.env` in the project root (or export these in your service environment).
+Start from `example.env`:
 
-# UI notifications for web answers include a trailing `:source: tavily/mistral` line.
-# That source marker is NOT spoken by TTS.
-```
+```dotenv
+# Required for Porcupine wake word
+PICOVOICE_ACCESS_KEY=pk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-See the example files in this repository.
+# Required for ASR (Groq Whisper) and TTS/summarization
+GROQ_API_KEY=gsk_yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+MISTRAL_API_KEY=abcdefghijklmnopqrstuvwxyz123456
 
-systemd User Service
 
-Enable btwd at login:
-```
-systemctl --user enable --now btw.service
+# enables read-only web answers via Tavily
+TAVILY_API_KEY=tttttttttttttttttttttttttttttttt
 ```
 
-View logs:
+### 5.3 `commands.json` (example)
+
+Commands are an allow-list: BTWd will only execute commands that exist in your `commands.json`.
+
+- `dangerous: true` commands trigger a strict confirmation flow.
+- Templates use simple placeholders like `{value}` / `{delta}`.
+
+Start from `example.commands.json`:
+
+```json
+[
+	{
+		"id": "lock_screen",
+		"category": "system",
+		"description": "Lock the current user session",
+		"examples": ["lock my computer", "lock the screen"],
+		"dangerous": false,
+		"parameters": {},
+		"shell_command_template": "loginctl lock-session"
+	},
+	{
+		"id": "system_shutdown",
+		"category": "power",
+		"description": "Shut down the system",
+		"examples": ["shut down", "power off"],
+		"dangerous": true,
+		"parameters": {},
+		"shell_command_template": "systemctl poweroff"
+	}
+]
 ```
-journalctl --user -u btw.service -f
+
+## Running
+
+Manual run (recommended while iterating):
+
+```zsh
+export LD_LIBRARY_PATH="$HOME/.local/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+set -a
+source ./.env
+set +a
+
+# BTWd uses XDG config paths by default:
+#   ~/.config/btw/config.toml
+#   ~/.config/btw/commands.json
+#   ~/.config/btw/.env
+
+mkdir -p ~/.config/btw
+cp -n ./example.config.toml ~/.config/btw/config.toml
+cp -n ./example.commands.json ~/.config/btw/commands.json
+cp -n ./example.env ~/.config/btw/.env
+
+./target/release/btwd
 ```
-Usage
 
-Say the wake word
+Systemd user service (example):
 
-Speak a command or question
+- The repo includes `btw.service` (adjust paths to your user/home).
+- Optional drop-in for TTS config: `systemd/btw.service.d/override-tts.conf`.
 
-For dangerous actions, confirm with “yes” or cancel with “no”
+## Known limitations
 
-Dry-Run Mode
+- Requires explicit command definitions (`commands.json`); unknown commands are not executed.
 
-To test safely:
-```
-[execution]
-dry_run = true
-```
+## Credits/APIs required
 
-Commands will be logged but not executed.
+- Picovoice (Porcupine)
+- Groq
+- Mistral
+- Tavily
 
-Troubleshooting
+## TODO
 
-No wake word: check PICOVOICE_ACCESS_KEY
+[ ] Add plugins integration
 
-No audio: verify microphone permissions
+  [ ] Google Calendar
 
-No speech output: ensure pw-play, aplay, or ffplay exists
-
-No web answers: verify TAVILY_API_KEY
-
-Privacy
-
-Audio is processed locally until ASR
-
-Only transcribed text is sent to APIs
-
-No data is stored permanently
-
-No browsing automation or background scraping
-
-License
-
-MIT
-
-
----
-
-## ✅ What you have now
-
-- A **production-ready install flow**
-- A **non-developer README**
-- Clear security guarantees
-- systemd-native behavior
-
-
-```
-cargo build --release
-cp target/release/btwd ~/.local/bin/btwd
-```
+  [ ] Gmail
