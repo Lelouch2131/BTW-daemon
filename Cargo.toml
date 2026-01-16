@@ -19,6 +19,7 @@ xdg = "2.5"
 cpal = "0.15"
 webrtc-vad = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+urlencoding = "2.1"
 
 [build-dependencies]
 bindgen = "0.69"

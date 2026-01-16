@@ -10,6 +10,7 @@ mod ml;
 mod ui;
 mod tts;
 mod search;
+mod net;
 mod executor;
 mod llm;
 mod decision;

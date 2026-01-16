@@ -72,6 +72,69 @@ pub fn notify_answer(enabled: bool, timeout_ms: u64, title: &str, body: &str) {
     });
 }
 
+pub fn notify_answer_with_open_in_browser(
+    enabled: bool,
+    timeout_ms: u64,
+    title: &str,
+    body: &str,
+    google_query_url: &str,
+) {
+    if !enabled {
+        return;
+    }
+
+    let title = title.to_string();
+    let body = sanitize_passive_body(body);
+    let google_query_url = google_query_url.to_string();
+
+    std::thread::spawn(move || {
+        let status = Command::new("notify-send")
+            .arg(title)
+            .arg(body)
+            .arg("--action")
+            .arg("open=Open in browser")
+            .arg("-u")
+            .arg("normal")
+            .arg("-h")
+            .arg("string:x-canonical-private-synchronous:btwd-answer")
+            .arg("-h")
+            .arg("string:category:im.received")
+            .arg("-h")
+            .arg("int:transient:1")
+            .arg("-t")
+            .arg(timeout_ms.to_string())
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .output();
+
+        let output = match status {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("notify-send error: {}", e);
+                return;
+            }
+        };
+
+        if !output.status.success() {
+            eprintln!("notify-send failed: status={:?}", output.status.code());
+            return;
+        }
+
+        let selection = String::from_utf8_lossy(&output.stdout);
+        if selection.trim() == "open" {
+            if let Err(e) = Command::new("xdg-open")
+                .arg(&google_query_url)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status()
+            {
+                eprintln!("xdg-open error: {}", e);
+            }
+        }
+    });
+}
+
 pub fn notify_confirm_actions(enabled: bool, request_id: &str, title: &str, body: &str) {
     if !enabled { return; }
     let request_id = request_id.to_string();

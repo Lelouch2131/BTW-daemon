@@ -122,6 +122,20 @@ pub fn search_and_summarize_async(
     std::thread::spawn(move || {
         let answer_timeout_ms = ui_timeout_ms.max(15_000);
 
+        // For web results, abort early if offline.
+        // Important: do not call Tavily and do not fall back to any other web flow.
+        if !crate::net::has_internet(800) {
+            if ui_enabled {
+                crate::ui::notify_answer(
+                    ui_enabled,
+                    answer_timeout_ms,
+                    "Btw",
+                    "No internet connection. Cannot fetch web results.",
+                );
+            }
+            return;
+        }
+
         // Strict 2-stage gating:
         // 1) Ask LLM to answer only if it is certain (else return exact sentinel)
         // 2) Only if sentinel, call Tavily and then ask LLM again using ONLY retrieved info
@@ -134,8 +148,23 @@ pub fn search_and_summarize_async(
         match final_answer_res {
             Ok(answer) => {
                 if ui_enabled {
-                    let ui_text = format!("{}\n\nsource: {}", answer, source_label);
-                    crate::ui::notify_answer(ui_enabled, answer_timeout_ms, "Btw", &ui_text);
+                    let ui_text = format!("{}\n\n:source: {}", answer, source_label);
+
+                    if source_label == "tavily" {
+                        let google_url = format!(
+                            "https://www.google.com/search?q={}",
+                            urlencoding::encode(&question)
+                        );
+                        crate::ui::notify_answer_with_open_in_browser(
+                            ui_enabled,
+                            answer_timeout_ms,
+                            "Btw",
+                            &ui_text,
+                            &google_url,
+                        );
+                    } else {
+                        crate::ui::notify_answer(ui_enabled, answer_timeout_ms, "Btw", &ui_text);
+                    }
                 }
                 // Speak the *Mistral-produced* answer only. Never speak raw Tavily facts.
                 let mut tts_force = tts.clone();
