@@ -53,7 +53,7 @@ impl LlmClient for GroqClient {
         let api_key = &self.api_key;
         let url = "https://api.groq.com/openai/v1/chat/completions";
         let text = if let Some(s) = snippets.first() { s } else { return Err("no snippets".into()) };
-        let system = "Summarize the following answer into one concise sentence suitable for speech. Return only the sentence.";
+        let system = "Summarize the following answer into a few concise sentences suitable for speech. Return only the sentences.";
         let user_prompt = text;
         let req_body = serde_json::json!({
             "model": "llama-3.1-8b-instant",
@@ -76,7 +76,7 @@ impl LlmClient for GroqClient {
     fn answer_short(&self, prompt: &str) -> Result<String, String> {
         let api_key = &self.api_key;
         let url = "https://api.groq.com/openai/v1/chat/completions";
-        let system = "You are a helpful voice assistant. Answer the user's question concisely in one or two sentences. Avoid markdown; output plain text only.";
+        let system = "You are a helpful voice assistant named Bumblebee. Answer the user's question concisely in one or two sentences. Avoid markdown; output plain text only.";
         let req_body = serde_json::json!({
             "model": "llama-3.1-8b-instant",
             "temperature": 0.2,
@@ -164,7 +164,7 @@ impl LlmClient for MistralClient {
     fn summarize_search(&self, _query: &str, snippets: &[String]) -> Result<String, String> {
         let url = "https://api.mistral.ai/v1/chat/completions";
         let text = if let Some(s) = snippets.first() { s } else { return Err("no snippets".into()) };
-        let system = "Summarize the following answer into one concise sentence suitable for speech. Return only the sentence.";
+        let system = "Summarize the following answer into a few concise sentences suitable for speech. Return only the sentences.";
         let user_prompt = text;
         let req_body = serde_json::json!({
             "model": "mistral-small-latest",
@@ -195,7 +195,7 @@ impl LlmClient for MistralClient {
 
     fn answer_short(&self, prompt: &str) -> Result<String, String> {
         let url = "https://api.mistral.ai/v1/chat/completions";
-        let system = "You are a helpful voice assistant. Answer the user's question concisely in one or two sentences. Avoid markdown; output plain text only.";
+        let system = "You are a helpful voice assistant named Bumblebee. Answer the user's question concisely in one or two sentences. Avoid markdown; output plain text only.";
         let req_body = serde_json::json!({
             "model": "mistral-small-latest",
             "temperature": 0.2,
